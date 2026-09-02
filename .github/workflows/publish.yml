@@ -1,0 +1,36 @@
+name: POC - Attest Release
+
+on:
+  repository_dispatch:
+    types: [poc-attest]
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.client_payload.tag }}
+    steps:
+      - name: "download fake jar from draft release"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$TAG" --pattern '*.jar'
+
+      - name: "attest build provenance"
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: poc-fake.jar
+
+      - name: "publish the release"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$TAG" --draft=false
+
+      - name: "verify attestation on the downloaded jar"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh attestation verify poc-fake.jar --owner "${{ github.repository_owner }}"
